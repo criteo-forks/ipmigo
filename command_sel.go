@@ -112,3 +112,35 @@ func (c *GetSELEntryCommand) Unmarshal(buf []byte) ([]byte, error) {
 		return buf[c.ReadBytes:], nil
 	}
 }
+
+// Clear SEL Command (Section 31.9)
+type ClearSELEntry struct {
+	// Request Data
+	ReservationID uint16
+	Action        uint8
+
+	// Response Data
+	ErasureStatus uint8
+}
+
+func (c *ClearSELEntry) Name() string { return "Clean SEL" }
+func (c *ClearSELEntry) Code() uint8  { return 0x47 } // All cmd Codes are listed in "Appendix G - Command Assignments"
+
+func (c *ClearSELEntry) NetFnRsLUN() NetFnRsLUN { return NewNetFnRsLUN(NetFnStorageReq, 0) }
+
+func (c *ClearSELEntry) String() string { return cmdToJSON(c) }
+func (c *ClearSELEntry) Marshal() ([]byte, error) {
+	cRecord := uint8(0x43)
+	lRecord := uint8(0x4c)
+	rRecord := uint8(0x52)
+	return []byte{byte(c.ReservationID), byte(c.ReservationID >> 8),
+		cRecord, lRecord, rRecord, c.Action}, nil
+}
+
+func (c *ClearSELEntry) Unmarshal(buf []byte) ([]byte, error) {
+	if err := cmdValidateLength(c, buf, 1); err != nil {
+		return nil, err
+	}
+	c.ErasureStatus = buf[0]
+	return buf, nil
+}
