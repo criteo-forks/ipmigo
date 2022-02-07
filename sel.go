@@ -296,3 +296,45 @@ func SELGetEntries(c *Client, offset, num int) (records []SELRecord, total int, 
 	}
 	return
 }
+
+// Clear SEL
+func ClearSEL(c *Client) (result *string, err error) {
+	// First we have to get the SEL reservation ID
+	CmdReserveSELCommand := &ReserveSELCommand{}
+	if err := c.Execute(CmdReserveSELCommand); err != nil {
+		return nil, err
+	}
+
+	// Action 0xaa means "initiate erase". (Request data in Section 31.9)
+	CmdClearSel := &ClearSELEntry{Action: 0xaa, ReservationID: CmdReserveSELCommand.ReservationID}
+	if err := c.Execute(CmdClearSel); err != nil {
+		return nil, err
+	}
+	return GetClearSELStatus(c, CmdClearSel)
+}
+
+// Get Clear SEL logs status
+func GetClearSELStatus(c *Client, CmdClearSel *ClearSELEntry) (result *string, err error) {
+	result = new(string)
+	if CmdClearSel == nil {
+		CmdReserveSELCommand := &ReserveSELCommand{}
+		if err := c.Execute(CmdReserveSELCommand); err != nil {
+			return nil, err
+		}
+
+		// Action 0x00 means "get erasure status". (Request data in Section 31.9)
+		CmdClearSel = &ClearSELEntry{Action: 0x00, ReservationID: CmdReserveSELCommand.ReservationID}
+		if err := c.Execute(CmdClearSel); err != nil {
+			return nil, err
+		}
+	}
+	switch CmdClearSel.ErasureStatus {
+	case 0x00: // erasure in progress (Response data in Section 31.9)
+		*result = "erasure in progress"
+	case 0x01: // erase completed (Response data in Section 31.9)
+		*result = "erase completed"
+	default:
+		return nil, fmt.Errorf("bad return code from ipmigo clear sel command")
+	}
+	return result, nil
+}
